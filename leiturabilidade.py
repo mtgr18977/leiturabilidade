@@ -97,13 +97,13 @@ st.sidebar.markdown("""
 * 1-6: Ensino Fundamental
 * 7-12: Ensino Médio
 * 13-16: Ensino Superior
-* >16: Pós-graduação
+* Acima de 16: Pós-graduação
 
 ### SMOG Index
 * 0-6: Ensino Fundamental
 * 7-12: Ensino Médio
 * 13-16: Ensino Superior
-* >16: Pós-graduação
+* Acima de 16: Pós-graduação
 
 ### Coleman-Liau Index
 * Similar ao Flesch-Kincaid Grade
@@ -129,5 +129,5 @@ st.sidebar.markdown("""
 * 0-5: Ensino Fundamental
 * 6-12: Ensino Médio
 * 13-16: Ensino Superior
-* >16: Pós-graduação
+* Acima de 16: Pós-graduação
 """)
