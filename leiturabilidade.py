@@ -81,3 +81,53 @@ else:
 st.sidebar.header('Sobre')
 st.sidebar.info('Esta aplicação realiza uma análise avançada de legibilidade de arquivos Markdown usando a biblioteca textstat.')
 st.sidebar.warning('Nota: Certifique-se de que o arquivo Markdown não contém informações sensíveis antes de fazer o upload.')
+
+st.sidebar.header('Valores de Referência')
+st.sidebar.markdown("""
+### Flesch Reading Ease
+* 90-100: Muito fácil
+* 80-89: Fácil
+* 70-79: Razoavelmente fácil
+* 60-69: Padrão
+* 50-59: Razoavelmente difícil
+* 30-49: Difícil
+* 0-29: Muito difícil
+
+### Flesch-Kincaid Grade
+* 1-6: Ensino Fundamental
+* 7-12: Ensino Médio
+* 13-16: Ensino Superior
+* >16: Pós-graduação
+
+### SMOG Index
+* 0-6: Ensino Fundamental
+* 7-12: Ensino Médio
+* 13-16: Ensino Superior
+* >16: Pós-graduação
+
+### Coleman-Liau Index
+* Similar ao Flesch-Kincaid Grade
+
+### Automated Readability Index
+* Similar ao Flesch-Kincaid Grade
+
+### Dale-Chall Readability Score
+* 4.9 ou menor: 4º ano ou abaixo
+* 5.0–6.9: 5º-6º ano
+* 7.0–8.9: 7º-8º ano
+* 9.0–9.9: 9º-10º ano
+* 10.0 ou maior: Universitário
+
+### Gunning Fog
+* 6: Fácil
+* 8-10: Ideal
+* 12: Aceitável
+* 14-18: Difícil
+* 20+: Muito difícil
+
+### Linsear Write Formula
+* 0-5: Ensino Fundamental
+* 6-12: Ensino Médio
+* 13-16: Ensino Superior
+* >16: Pós-graduação
+""")
