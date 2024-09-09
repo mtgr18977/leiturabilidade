@@ -1,0 +1,6 @@
+streamlit
+textstat
+pandas
+markdown
+spacy
+matplotlib
