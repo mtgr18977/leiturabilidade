@@ -2,6 +2,7 @@ import streamlit as st
 import textstat
 import io
 from collections import Counter
+import matplotlib.pyplot as plt
 import re
 
 # Lista de stop words em inglês
@@ -68,6 +69,17 @@ def get_word_frequency(content, top_n=10):
     # Filtra as stop words
     words = [word for word in words if word not in STOP_WORDS]
     return Counter(words).most_common(top_n)
+
+def plot_word_frequency(word_freq):
+    words, counts = zip(*word_freq)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.bar(words, counts)
+    plt.xticks(rotation=45, ha='right')
+    plt.title("Palavras mais comuns (excluindo stop words)")
+    plt.xlabel("Palavras")
+    plt.ylabel("Frequência")
+    plt.tight_layout()
+    return fig
 
 def generate_report(results, word_freq):
     report = f"""
@@ -149,8 +161,12 @@ if uploaded_file is not None:
             st.metric("Gunning Fog", f"{results['Gunning Fog']:.2f}")
             st.metric("Text Standard", results['Text Standard'])
 
-    st.subheader("Relatório de Análise")
+    st.subheader("Análise de Frequência de Palavras")
     word_freq = get_word_frequency(content)
+    fig = plot_word_frequency(word_freq)
+    st.pyplot(fig)
+
+    st.subheader("Relatório de Análise")
     report = generate_report(results, word_freq)
     st.markdown(report)
 
