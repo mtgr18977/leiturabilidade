@@ -1,72 +1,50 @@
 import streamlit as st
-import re
-import string
-from collections import Counter
+import textstat
 import io
 
-def count_sentences(text):
-    return len(re.findall(r'\w+[.!?][\s\n]', text)) + 1
-
-def count_words(text):
-    words = re.findall(r'\w+', text.lower())
-    return len(words)
-
-def count_syllables(word):
-    word = word.lower()
-    count = 0
-    vowels = 'aeiouy'
-    if word[0] in vowels:
-        count += 1
-    for index in range(1, len(word)):
-        if word[index] in vowels and word[index - 1] not in vowels:
-            count += 1
-    if word.endswith('e'):
-        count -= 1
-    if word.endswith('le'):
-        count += 1
-    if count == 0:
-        count += 1
-    return count
-
-def analyze_text(text):
-    sentences = count_sentences(text)
-    words = count_words(text)
-    syllables = sum(count_syllables(word) for word in re.findall(r'\w+', text.lower()))
-    
-    if words > 0 and sentences > 0:
-        flesch_kincaid_grade = 0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59
-    else:
-        flesch_kincaid_grade = 0
+def analyze_readability(content):
+    # Remover formatação Markdown
+    content = content.replace('#', '').replace('*', '').replace('-', '').replace('`', '')
     
     return {
-        "Número de sentenças": sentences,
-        "Número de palavras": words,
-        "Número de sílabas": syllables,
-        "Média de palavras por sentença": words / sentences if sentences > 0 else 0,
-        "Média de sílabas por palavra": syllables / words if words > 0 else 0,
-        "Índice Flesch-Kincaid simplificado": flesch_kincaid_grade
+        "Flesch Reading Ease": textstat.flesch_reading_ease(content),
+        "Flesch-Kincaid Grade": textstat.flesch_kincaid_grade(content),
+        "SMOG Index": textstat.smog_index(content),
+        "Coleman-Liau Index": textstat.coleman_liau_index(content),
+        "Automated Readability Index": textstat.automated_readability_index(content),
+        "Dale-Chall Readability Score": textstat.dale_chall_readability_score(content),
+        "Difficult Words": textstat.difficult_words(content),
+        "Linsear Write Formula": textstat.linsear_write_formula(content),
+        "Gunning Fog": textstat.gunning_fog(content),
+        "Text Standard": textstat.text_standard(content)
     }
 
-def interpret_fk_grade(fk_grade):
-    if fk_grade < 6:
-        return "Muito fácil", "Adequado para estudantes do ensino fundamental."
-    elif 6 <= fk_grade < 10:
-        return "Fácil", "Adequado para estudantes do ensino médio."
-    elif 10 <= fk_grade < 14:
-        return "Moderado", "Adequado para estudantes universitários."
+def interpret_flesch_reading_ease(score):
+    if score < 30:
+        return "Muito difícil", "Melhor entendido por graduados universitários."
+    elif 30 <= score < 50:
+        return "Difícil", "Nível universitário."
+    elif 50 <= score < 60:
+        return "Razoavelmente difícil", "10º a 12º ano."
+    elif 60 <= score < 70:
+        return "Padrão", "8º e 9º ano."
+    elif 70 <= score < 80:
+        return "Razoavelmente fácil", "7º ano."
+    elif 80 <= score < 90:
+        return "Fácil", "6º ano."
     else:
-        return "Difícil", "Adequado para leitores com nível universitário ou profissional."
+        return "Muito fácil", "5º ano."
 
-st.set_page_config(page_title="Análise de Legibilidade Markdown", layout="wide")
+st.set_page_config(page_title="Análise Avançada de Legibilidade Markdown", layout="wide")
 
-st.title('Análise de Legibilidade de Arquivo Markdown')
+st.title('Análise Avançada de Legibilidade de Arquivo Markdown')
 
 uploaded_file = st.file_uploader("Escolha um arquivo Markdown", type="md")
 
 if uploaded_file is not None:
     content = uploaded_file.getvalue().decode("utf-8")
     
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 2])
     
     with col1:
         st.subheader("Conteúdo do Arquivo")
@@ -74,31 +52,32 @@ if uploaded_file is not None:
     
     with col2:
         st.subheader("Resultados da Análise")
-        results = analyze_text(content)
+        results = analyze_readability(content)
         
-        metrics = ["Número de sentenças", "Número de palavras", "Número de sílabas"]
-        averages = ["Média de palavras por sentença", "Média de sílabas por palavra"]
+        col2a, col2b = st.columns(2)
         
-        for metric in metrics:
-            st.metric(label=metric, value=f"{results[metric]:.0f}")
+        with col2a:
+            fre_score = results["Flesch Reading Ease"]
+            difficulty, explanation = interpret_flesch_reading_ease(fre_score)
+            st.metric("Flesch Reading Ease", f"{fre_score:.2f}")
+            st.markdown(f"**Dificuldade:** {difficulty}")
+            st.markdown(f"**Interpretação:** {explanation}")
+            
+            st.metric("Flesch-Kincaid Grade", f"{results['Flesch-Kincaid Grade']:.2f}")
+            st.metric("SMOG Index", f"{results['SMOG Index']:.2f}")
+            st.metric("Coleman-Liau Index", f"{results['Coleman-Liau Index']:.2f}")
+            st.metric("Automated Readability Index", f"{results['Automated Readability Index']:.2f}")
         
-        st.markdown("---")
-        
-        for avg in averages:
-            st.metric(label=avg, value=f"{results[avg]:.2f}")
-        
-        st.markdown("---")
-        
-        fk_grade = results["Índice Flesch-Kincaid simplificado"]
-        difficulty, explanation = interpret_fk_grade(fk_grade)
-        
-        st.metric(label="Índice Flesch-Kincaid simplificado", value=f"{fk_grade:.2f}")
-        st.markdown(f"**Dificuldade:** {difficulty}")
-        st.markdown(f"**Interpretação:** {explanation}")
+        with col2b:
+            st.metric("Dale-Chall Readability Score", f"{results['Dale-Chall Readability Score']:.2f}")
+            st.metric("Difficult Words", f"{results['Difficult Words']}")
+            st.metric("Linsear Write Formula", f"{results['Linsear Write Formula']:.2f}")
+            st.metric("Gunning Fog", f"{results['Gunning Fog']:.2f}")
+            st.metric("Text Standard", results['Text Standard'])
 
 else:
     st.info("Por favor, faça o upload de um arquivo Markdown para iniciar a análise.")
 
 st.sidebar.header('Sobre')
-st.sidebar.info('Esta aplicação realiza uma análise simplificada de legibilidade de arquivos Markdown.')
-st.sidebar.warning('Nota: Esta é uma versão simplificada e pode não ser tão precisa quanto ferramentas mais avançadas.')
+st.sidebar.info('Esta aplicação realiza uma análise avançada de legibilidade de arquivos Markdown usando a biblioteca textstat.')
+st.sidebar.warning('Nota: Certifique-se de que o arquivo Markdown não contém informações sensíveis antes de fazer o upload.')
