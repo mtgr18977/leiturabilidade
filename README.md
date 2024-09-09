@@ -28,8 +28,8 @@ Este projeto é uma aplicação Streamlit que realiza uma análise avançada de 
 ## Instalação
 1. Clone este repositório:
    ```
-   git clone https://github.com/seu-usuario/nome-do-repositorio.git
-   cd nome-do-repositorio
+   git clone https://github.com/mtgr18977/leiturabilidade.git
+   cd leiturabilidade
    ```
 
 2. Instale as dependências:
