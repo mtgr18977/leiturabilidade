@@ -5,40 +5,6 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import re
 
-# Tentativa de importar WordCloud
-try:
-    from wordcloud import WordCloud
-    WORDCLOUD_AVAILABLE = True
-except ImportError:
-    WORDCLOUD_AVAILABLE = False
-    st.warning("A biblioteca WordCloud não está instalada. A nuvem de palavras não estará disponível.")
-
-# Lista de stop words em inglês
-STOP_WORDS = set([
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
-    'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were',
-    'will', 'with', 'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves',
-    'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself',
-    'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers',
-    'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs',
-    'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll",
-    'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-    'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an',
-    'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of',
-    'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through',
-    'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down',
-    'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then',
-    'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any',
-    'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor',
-    'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can',
-    'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll',
-    'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't",
-    'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't",
-    'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn',
-    "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't",
-    'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"
-])
-
 def analyze_readability(content):
     # Remover formatação Markdown
     content = content.replace('#', '').replace('*', '').replace('-', '').replace('`', '')
@@ -72,22 +38,17 @@ def interpret_flesch_reading_ease(score):
     else:
         return "Muito fácil", "5º ano."
 
-def get_word_frequency(content):
+def get_word_frequency(content, top_n=10):
     words = re.findall(r'\b\w+\b', content.lower())
-    # Filtra as stop words
-    words = [word for word in words if word not in STOP_WORDS]
-    return Counter(words)
+    return Counter(words).most_common(top_n)
 
-def create_word_cloud(word_freq):
-    if not WORDCLOUD_AVAILABLE:
-        return None
-    
-    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_freq)
-    
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(wordcloud, interpolation='bilinear')
-    ax.axis('off')
-    plt.title("Nuvem de Palavras (excluindo stop words)")
+def plot_word_frequency(word_freq):
+    words, counts = zip(*word_freq)
+    fig, ax = plt.subplots()
+    ax.bar(words, counts)
+    plt.xticks(rotation=45, ha='right')
+    plt.title("Palavras mais comuns")
+    plt.tight_layout()
     return fig
 
 def generate_report(results, word_freq):
@@ -111,8 +72,8 @@ def generate_report(results, word_freq):
     - Número de palavras difíceis: {results['Difficult Words']}
     - Padrão de texto: {results['Text Standard']}
 
-    ## Palavras mais comuns (excluindo stop words)
-    {', '.join([f"{word} ({count})" for word, count in word_freq[:10]])}
+    ## Palavras mais comuns
+    {', '.join([f"{word} ({count})" for word, count in word_freq])}
 
     ## Recomendações
     Baseado nestes resultados, considere:
@@ -126,7 +87,7 @@ def generate_report(results, word_freq):
     "Manter o atual comprimento das frases, que está em um bom nível" if 10 <= results['Gunning Fog'] <= 12 else
     "Considerar frases um pouco mais longas ou complexas se apropriado para o público"
     }
-    3. Revisar o uso frequente das palavras mais comuns (excluindo stop words) e considerar variações para enriquecer o vocabulário, se apropriado.
+    3. Revisar o uso frequente das palavras mais comuns e considerar variações para enriquecer o vocabulário, se apropriado.
     """
     return report
 
@@ -172,21 +133,11 @@ if uploaded_file is not None:
 
     st.subheader("Análise de Frequência de Palavras")
     word_freq = get_word_frequency(content)
-    
-    if WORDCLOUD_AVAILABLE:
-        st.subheader("Nuvem de Palavras")
-        fig = create_word_cloud(word_freq)
-        if fig:
-            st.pyplot(fig)
-    else:
-        st.info("A nuvem de palavras não está disponível. Mostrando apenas a lista de palavras mais frequentes.")
-
-    st.subheader("Palavras mais frequentes")
-    top_words = word_freq.most_common(10)
-    st.write(", ".join([f"{word} ({count})" for word, count in top_words]))
+    fig = plot_word_frequency(word_freq)
+    st.pyplot(fig)
 
     st.subheader("Relatório de Análise")
-    report = generate_report(results, top_words)
+    report = generate_report(results, word_freq)
     st.markdown(report)
 
 else:
