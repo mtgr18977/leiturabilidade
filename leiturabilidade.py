@@ -4,7 +4,14 @@ import io
 from collections import Counter
 import matplotlib.pyplot as plt
 import re
-from wordcloud import WordCloud
+
+# Tentativa de importar WordCloud
+try:
+    from wordcloud import WordCloud
+    WORDCLOUD_AVAILABLE = True
+except ImportError:
+    WORDCLOUD_AVAILABLE = False
+    st.warning("A biblioteca WordCloud não está instalada. A nuvem de palavras não estará disponível.")
 
 # Lista de stop words em inglês
 STOP_WORDS = set([
@@ -72,6 +79,9 @@ def get_word_frequency(content):
     return Counter(words)
 
 def create_word_cloud(word_freq):
+    if not WORDCLOUD_AVAILABLE:
+        return None
+    
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_freq)
     
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -160,10 +170,16 @@ if uploaded_file is not None:
             st.metric("Gunning Fog", f"{results['Gunning Fog']:.2f}")
             st.metric("Text Standard", results['Text Standard'])
 
-    st.subheader("Nuvem de Palavras")
+    st.subheader("Análise de Frequência de Palavras")
     word_freq = get_word_frequency(content)
-    fig = create_word_cloud(word_freq)
-    st.pyplot(fig)
+    
+    if WORDCLOUD_AVAILABLE:
+        st.subheader("Nuvem de Palavras")
+        fig = create_word_cloud(word_freq)
+        if fig:
+            st.pyplot(fig)
+    else:
+        st.info("A nuvem de palavras não está disponível. Mostrando apenas a lista de palavras mais frequentes.")
 
     st.subheader("Palavras mais frequentes")
     top_words = word_freq.most_common(10)
