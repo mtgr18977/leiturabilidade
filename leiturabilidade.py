@@ -4,6 +4,7 @@ import io
 from collections import Counter
 import matplotlib.pyplot as plt
 import re
+from wordcloud import WordCloud
 
 # Lista de stop words em inglês
 STOP_WORDS = set([
@@ -64,21 +65,19 @@ def interpret_flesch_reading_ease(score):
     else:
         return "Muito fácil", "5º ano."
 
-def get_word_frequency(content, top_n=10):
+def get_word_frequency(content):
     words = re.findall(r'\b\w+\b', content.lower())
     # Filtra as stop words
     words = [word for word in words if word not in STOP_WORDS]
-    return Counter(words).most_common(top_n)
+    return Counter(words)
 
-def plot_word_frequency(word_freq):
-    words, counts = zip(*word_freq)
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(words, counts)
-    plt.xticks(rotation=45, ha='right')
-    plt.title("Palavras mais comuns (excluindo stop words)")
-    plt.xlabel("Palavras")
-    plt.ylabel("Frequência")
-    plt.tight_layout()
+def create_word_cloud(word_freq):
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_freq)
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    plt.title("Nuvem de Palavras (excluindo stop words)")
     return fig
 
 def generate_report(results, word_freq):
@@ -103,7 +102,7 @@ def generate_report(results, word_freq):
     - Padrão de texto: {results['Text Standard']}
 
     ## Palavras mais comuns (excluindo stop words)
-    {', '.join([f"{word} ({count})" for word, count in word_freq])}
+    {', '.join([f"{word} ({count})" for word, count in word_freq[:10]])}
 
     ## Recomendações
     Baseado nestes resultados, considere:
@@ -161,13 +160,17 @@ if uploaded_file is not None:
             st.metric("Gunning Fog", f"{results['Gunning Fog']:.2f}")
             st.metric("Text Standard", results['Text Standard'])
 
-    st.subheader("Análise de Frequência de Palavras")
+    st.subheader("Nuvem de Palavras")
     word_freq = get_word_frequency(content)
-    fig = plot_word_frequency(word_freq)
+    fig = create_word_cloud(word_freq)
     st.pyplot(fig)
 
+    st.subheader("Palavras mais frequentes")
+    top_words = word_freq.most_common(10)
+    st.write(", ".join([f"{word} ({count})" for word, count in top_words]))
+
     st.subheader("Relatório de Análise")
-    report = generate_report(results, word_freq)
+    report = generate_report(results, top_words)
     st.markdown(report)
 
 else:
