@@ -1,101 +1,115 @@
 import streamlit as st
 import textstat
-import io
-from collections import Counter
-import matplotlib.pyplot as plt
+import pandas as pd
+import markdown
 import re
+import spacy
+import matplotlib.pyplot as plt
+from statistics import mean
 
-# Lista de stop words em inglês
-STOP_WORDS = set([
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
-    'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were',
-    'will', 'with', 'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves',
-    'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself',
-    'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers',
-    'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs',
-    'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll",
-    'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-    'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an',
-    'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of',
-    'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through',
-    'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down',
-    'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then',
-    'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any',
-    'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor',
-    'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can',
-    'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll',
-    'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't",
-    'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't",
-    'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn',
-    "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't",
-    'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't"
-])
+# Função para ler o arquivo de configuração
+def read_config(file_path='config.txt'):
+    config = {}
+    with open(file_path, 'r') as file:
+        for line in file:
+            if line.strip() and not line.startswith('#'):
+                key, value = line.strip().split('=')
+                config[key.strip()] = value.strip()
+    return config
 
-def analyze_readability(content):
-    # Função de análise de legibilidade (mantida como estava)
-    ...
+# Carregar configurações
+config = read_config()
 
-def interpret_flesch_reading_ease(score):
-    # Função de interpretação do Flesch Reading Ease (mantida como estava)
-    ...
+# Download spaCy model
+@st.cache_resource
+def load_spacy_model():
+    return spacy.load(config['modelo_spacy'])
 
-def get_word_frequency(content, top_n=10):
-    words = re.findall(r'\b\w+\b', content.lower())
-    # Filtra as stop words
-    words = [word for word in words if word not in STOP_WORDS]
-    return Counter(words).most_common(top_n)
+nlp = load_spacy_model()
 
-def plot_word_frequency(word_freq):
-    words, counts = zip(*word_freq)
+def calcular_indices_legibilidade(texto):
+    indices = config['indices_legibilidade'].split(',')
+    resultados = {}
+    for indice in indices:
+        if hasattr(textstat, indice):
+            resultados[indice] = getattr(textstat, indice)(texto)
+    return pd.DataFrame(list(resultados.items()), columns=['Índice', 'Valor'])
+
+def amostras_de_cem_palavras(texto):
+    palavras = re.findall(r'\w+', texto)
+    return [palavras[i:i+100] for i in range(0, len(palavras), 100) if i+100 <= len(palavras)]
+
+def calcular_frases_e_silabas_por_cem_palavras(amostra):
+    texto_amostra = ' '.join(amostra)
+    doc = nlp(texto_amostra)
+    numero_de_frases = len(list(doc.sents))
+    numero_de_silabas = sum(textstat.syllable_count(token.text) for token in doc)
+    return numero_de_frases, numero_de_silabas
+
+def calcular_indice_fry(texto):
+    amostras = amostras_de_cem_palavras(texto)
+    tamanho_minimo = int(config['tamanho_minimo_palavras'])
+    if len(amostras) * 100 < tamanho_minimo:
+        raise ValueError(f"O texto precisa ter pelo menos {tamanho_minimo} palavras para uma análise adequada.")
+    
+    frases_por_cem = []
+    silabas_por_cem = []
+    
+    for amostra in amostras[:3]:
+        frases, silabas = calcular_frases_e_silabas_por_cem_palavras(amostra)
+        frases_por_cem.append(frases)
+        silabas_por_cem.append(silabas)
+    
+    media_frases = mean(frases_por_cem)
+    media_silabas = mean(silabas_por_cem)
+    
+    return media_frases, media_silabas
+
+def plotar_grafico_fry(silabas_por_100_palavras, frases_por_100_palavras):
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(words, counts)
-    plt.xticks(rotation=45, ha='right')
-    plt.title("Palavras mais comuns (excluindo stop words)")
-    plt.xlabel("Palavras")
-    plt.ylabel("Frequência")
-    plt.tight_layout()
+    ax.set_xlim(0, 20)
+    ax.set_ylim(0, 20)
+    
+    niveis_de_leitura = [(4, '4º-5º ano'), (6, '6º-8º ano'), (8, '8º-9º ano'), (10, 'Ensino Médio'), (14, 'Universitário')]
+    for nivel, descricao in niveis_de_leitura:
+        ax.axhline(y=nivel, color='gray', linestyle='--')
+        ax.axvline(x=nivel, color='gray', linestyle='--')
+        ax.text(20.5, nivel, descricao, va='center', ha='left', backgroundcolor='w')
+        ax.text(nivel, 20.5, descricao, va='bottom', ha='center', backgroundcolor='w', rotation=90)
+    
+    ax.scatter(silabas_por_100_palavras, frases_por_100_palavras, color='red')
+    ax.set_xlabel('Sílabas por 100 palavras')
+    ax.set_ylabel('Frases por 100 palavras')
+    ax.grid(True)
+    
     return fig
 
-def generate_report(results, word_freq):
-    # Atualizar o relatório para mencionar a exclusão de stop words
-    report = f"""
-    # Relatório de Análise de Legibilidade
+st.title('Análise de Legibilidade de Texto')
 
-    ## Resumo
-    O texto analisado tem um nível de legibilidade {interpret_flesch_reading_ease(results['Flesch Reading Ease'])[0].lower()}, 
-    com uma pontuação Flesch Reading Ease de {results['Flesch Reading Ease']:.2f}. 
-    Isso significa que o texto é mais adequado para {interpret_flesch_reading_ease(results['Flesch Reading Ease'])[1]}
+uploaded_file = st.file_uploader("Escolha um arquivo Markdown", type="md")
 
-    ## Métricas Detalhadas
-    - Flesch-Kincaid Grade: {results['Flesch-Kincaid Grade']:.2f}
-    - SMOG Index: {results['SMOG Index']:.2f}
-    - Coleman-Liau Index: {results['Coleman-Liau Index']:.2f}
-    - Automated Readability Index: {results['Automated Readability Index']:.2f}
-    - Dale-Chall Readability Score: {results['Dale-Chall Readability Score']:.2f}
-    - Gunning Fog: {results['Gunning Fog']:.2f}
+if uploaded_file is not None:
+    content = uploaded_file.read().decode('utf-8')
+    texto = markdown.markdown(content)
+    
+    st.header('Índices de Legibilidade')
+    indices = calcular_indices_legibilidade(texto)
+    st.table(indices)
+    
+    st.header('Gráfico de Fry')
+    try:
+        media_frases, media_silabas = calcular_indice_fry(texto)
+        st.write(f"Média de frases por 100 palavras: {media_frases:.2f}")
+        st.write(f"Média de sílabas por 100 palavras: {media_silabas:.2f}")
+        
+        fig = plotar_grafico_fry(media_silabas, media_frases)
+        st.pyplot(fig)
+    except ValueError as e:
+        st.error(str(e))
 
-    ## Complexidade do Vocabulário
-    - Número de palavras difíceis: {results['Difficult Words']}
-    - Padrão de texto: {results['Text Standard']}
-
-    ## Palavras mais comuns (excluindo stop words)
-    {', '.join([f"{word} ({count})" for word, count in word_freq])}
-
-    ## Recomendações
-    Baseado nestes resultados, considere:
-    1. {
-    "Simplificar o vocabulário e a estrutura das frases" if results['Flesch Reading Ease'] < 60 else 
-    "Manter o atual nível de complexidade, que é adequado para o público-alvo" if 60 <= results['Flesch Reading Ease'] < 80 else
-    "Possivelmente aumentar a complexidade se o público-alvo for mais avançado"
-    }
-    2. {
-    "Reduzir o comprimento das frases para melhorar a clareza" if results['Gunning Fog'] > 12 else
-    "Manter o atual comprimento das frases, que está em um bom nível" if 10 <= results['Gunning Fog'] <= 12 else
-    "Considerar frases um pouco mais longas ou complexas se apropriado para o público"
-    }
-    3. Revisar o uso frequente das palavras mais comuns (excluindo stop words) e considerar variações para enriquecer o vocabulário, se apropriado.
-    """
-    return report
-
-# O resto do código Streamlit permanece o mesmo
-...
+st.sidebar.header('Sobre')
+st.sidebar.info('Esta aplicação analisa a legibilidade de textos em arquivos Markdown.')
+st.sidebar.header('Configurações')
+st.sidebar.info(f"Modelo spaCy: {config['modelo_spacy']}")
+st.sidebar.info(f"Índices de legibilidade: {config['indices_legibilidade']}")
+st.sidebar.info(f"Tamanho mínimo de palavras: {config['tamanho_minimo_palavras']}")
